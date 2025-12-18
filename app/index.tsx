@@ -5,13 +5,11 @@ import {
   View,
   TouchableOpacity,
   Image,
-  Dimensions,
   Animated,
+  Platform,
 } from 'react-native';
-import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
-
-const { width, height } = Dimensions.get('window');
+import { StatusBar } from 'expo-status-bar';
 
 // App States
 type AppState = 'home' | 'voiceConfig' | 'playback';
@@ -19,7 +17,6 @@ type AppState = 'home' | 'voiceConfig' | 'playback';
 export default function App() {
   const [appState, setAppState] = useState<AppState>('home');
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
   
   // Animation for waveform
   const waveAnim = useState(new Animated.Value(0))[0];
@@ -43,21 +40,6 @@ export default function App() {
     animation.start();
     
     return () => animation.stop();
-  }, []);
-
-  useEffect(() => {
-    // Request audio permissions
-    const requestPermissions = async () => {
-      try {
-        await Audio.requestPermissionsAsync();
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-        });
-      } catch (error) {
-        console.error('Failed to get permissions:', error);
-      }
-    };
-    requestPermissions();
   }, []);
 
   const handleGridPress = () => {
@@ -103,10 +85,9 @@ export default function App() {
   const handleStop = () => {
     Speech.stop();
     setIsSpeaking(false);
-    setAppState('voiceConfig');
   };
 
-  const handleProfilePress = () => {
+  const handleReset = () => {
     Speech.stop();
     setIsSpeaking(false);
     setAppState('home');
@@ -143,12 +124,12 @@ export default function App() {
           ]}
         >
           <View style={styles.waveformBars}>
-            {[0.4, 0.7, 1, 0.7, 0.4].map((height, i) => (
+            {[0.4, 0.7, 1, 0.7, 0.4].map((h, i) => (
               <View 
                 key={i} 
                 style={[
                   styles.waveformBar, 
-                  { height: 20 * height }
+                  { height: 20 * h }
                 ]} 
               />
             ))}
@@ -161,12 +142,10 @@ export default function App() {
   // Render State 2: Voice Configuration
   const renderVoiceConfigState = () => (
     <View style={styles.voiceBar}>
-      <TouchableOpacity onPress={handleProfilePress}>
-        <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face' }}
-          style={styles.barProfileImage}
-        />
-      </TouchableOpacity>
+      <Image
+        source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face' }}
+        style={styles.barProfileImage}
+      />
       
       <View style={styles.voiceInfo}>
         <Text style={styles.voiceName}>Alloy</Text>
@@ -183,12 +162,10 @@ export default function App() {
   // Render State 3: Playback/Active
   const renderPlaybackState = () => (
     <View style={styles.voiceBar}>
-      <TouchableOpacity onPress={handleProfilePress}>
-        <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face' }}
-          style={styles.barProfileImage}
-        />
-      </TouchableOpacity>
+      <Image
+        source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face' }}
+        style={styles.barProfileImage}
+      />
       
       <View style={styles.voiceInfo}>
         <Text style={styles.voiceName}>Alloy</Text>
@@ -210,49 +187,32 @@ export default function App() {
     </View>
   );
 
-  const handleReset = () => {
-    Speech.stop();
-    setIsSpeaking(false);
-    setAppState('home');
-  };
-
   return (
     <View style={styles.container}>
-      {/* Phone Frame */}
-      <View style={styles.phoneFrame}>
-        {/* Screen Content */}
-        <View style={styles.screen}>
-          {/* Notch */}
-          <View style={styles.notch} />
-          
-          {/* Main Content Area */}
-          <View style={styles.content}>
-            {/* Voice bar at top for states 2 & 3 */}
-            {(appState === 'voiceConfig' || appState === 'playback') && (
-              <View style={styles.topBarContainer}>
-                {appState === 'voiceConfig' && renderVoiceConfigState()}
-                {appState === 'playback' && renderPlaybackState()}
-              </View>
-            )}
-            
-            {/* Home buttons at bottom for state 1 */}
-            {appState === 'home' && (
-              <View style={styles.bottomButtonContainer}>
-                {renderHomeState()}
-              </View>
-            )}
-          </View>
-          
-          {/* Home Indicator */}
-          <View style={styles.homeIndicator} />
-        </View>
-      </View>
+      <StatusBar style="dark" />
       
-      {/* Reset to Start Button - Outside phone frame */}
+      {/* Voice bar at top for states 2 & 3 */}
+      {(appState === 'voiceConfig' || appState === 'playback') && (
+        <View style={styles.topBarContainer}>
+          {appState === 'voiceConfig' && renderVoiceConfigState()}
+          {appState === 'playback' && renderPlaybackState()}
+        </View>
+      )}
+      
+      {/* Home buttons at bottom for state 1 */}
+      {appState === 'home' && (
+        <View style={styles.bottomButtonContainer}>
+          {renderHomeState()}
+        </View>
+      )}
+      
+      {/* Reset to Start Button */}
       {appState !== 'home' && (
-        <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-          <Text style={styles.resetButtonText}>Reset to Start</Text>
-        </TouchableOpacity>
+        <View style={styles.resetContainer}>
+          <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+            <Text style={styles.resetButtonText}>Reset to Start</Text>
+          </TouchableOpacity>
+        </View>
       )}
       
       {/* Status Indicator */}
@@ -270,49 +230,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F0',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  phoneFrame: {
-    width: Math.min(width * 0.85, 380),
-    height: Math.min(height * 0.75, 780),
-    backgroundColor: '#1C1C1E',
-    borderRadius: 50,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 20,
+  
+  // Top bar container for States 2 & 3
+  topBarContainer: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: 16,
   },
-  screen: {
-    flex: 1,
-    backgroundColor: '#F5F5F0',
-    borderRadius: 40,
-    overflow: 'hidden',
-  },
-  notch: {
-    width: 150,
-    height: 35,
-    backgroundColor: '#1C1C1E',
-    alignSelf: 'center',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    marginTop: 0,
-  },
-  content: {
+  
+  // Bottom buttons for State 1
+  bottomButtonContainer: {
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingBottom: 80,
-  },
-  homeIndicator: {
-    width: 134,
-    height: 5,
-    backgroundColor: '#1C1C1E',
-    borderRadius: 3,
-    alignSelf: 'center',
-    marginBottom: 10,
+    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
   },
   
   // State 1: Home State Styles
@@ -392,7 +323,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 50,
     gap: 12,
-    marginHorizontal: 20,
   },
   barProfileImage: {
     width: 50,
@@ -450,44 +380,15 @@ const styles = StyleSheet.create({
     color: '#1C1C1E',
   },
   
-  // Status Indicator
-  statusIndicator: {
+  // Reset Button
+  resetContainer: {
     position: 'absolute',
-    top: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1C1C1E',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    gap: 10,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF3B30',
-  },
-  statusText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  
-  // New styles for layout and reset button
-  topBarContainer: {
-    position: 'absolute',
-    top: 50,
+    bottom: Platform.OS === 'ios' ? 50 : 30,
     left: 0,
     right: 0,
-    paddingHorizontal: 10,
-  },
-  bottomButtonContainer: {
-    position: 'absolute',
-    bottom: 40,
+    alignItems: 'center',
   },
   resetButton: {
-    marginTop: 20,
     backgroundColor: '#FFD700',
     paddingVertical: 14,
     paddingHorizontal: 30,
@@ -501,6 +402,32 @@ const styles = StyleSheet.create({
   resetButtonText: {
     color: '#1C1C1E',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Status Indicator
+  statusIndicator: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1C1C1E',
+    padding: 12,
+    borderRadius: 25,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
+    marginRight: 10,
+  },
+  statusText: {
+    color: '#FFF',
+    fontSize: 14,
     fontWeight: '600',
   },
 });
